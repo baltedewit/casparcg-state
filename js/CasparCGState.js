@@ -1,4 +1,5 @@
 "use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
 var _ = require("underscore");
 // state NS
 var StateObject_1 = require("./lib/StateObject");
@@ -12,13 +13,13 @@ var TransitionObject = StateObject_1.StateObject.TransitionObject;
 //import * as CCG_conn from "casparcg-connection";
 // AMCP NS
 var casparcg_connection_1 = require("casparcg-connection");
-var CasparCGStateVersion = "2017-07-06 12:19";
+var CasparCGStateVersion = "2017-11-06 19:15";
 // config NS
 // import {Config as ConfigNS} from "casparcg-connection";
 // import CasparCGConfig207 = ConfigNS.v207.CasparCGConfigVO;
 // import CasparCGConfig210 = ConfigNS.v21x.CasparCGConfigVO;
 /** */
-var CasparCGState = (function () {
+var CasparCGState = /** @class */ (function () {
     /** */
     function CasparCGState(config) {
         var _this = this;
@@ -48,10 +49,22 @@ var CasparCGState = (function () {
         if (config && config.externalStorage) {
             this._currentStateStorage.assignExternalStorage(config.externalStorage);
         }
-        console.log("CasparCGState version: " + CasparCGStateVersion);
+        this.log("CasparCGState version: " + CasparCGStateVersion);
+        if (config && config.externalLog) {
+            this._externalLog = config.externalLog;
+        }
     }
+    CasparCGState.prototype.log = function (arg0, arg1, arg2, arg3) {
+        if (this._externalLog) {
+            this._externalLog(arg0, arg1, arg2, arg3);
+        }
+        else {
+            console.log(arg0, arg1, arg2, arg3);
+        }
+    };
     /** */
     CasparCGState.prototype.initStateFromChannelInfo = function (channels) {
+        var _this = this;
         var currentState = this._currentStateStorage.fetchState();
         _.each(channels, function (channel, i) {
             //let existingChannel = _.findWhere(currentState.channels, {channelNo: i + 1});
@@ -64,6 +77,10 @@ var CasparCGState = (function () {
             }
             existingChannel.videoMode = channel["format"];
             existingChannel.fps = channel["frameRate"];
+            if (!existingChannel.videoMode)
+                _this.log("State: No channel videoMode given!");
+            if (!existingChannel.fps)
+                _this.log("State: No channel FPS given!");
             existingChannel.layers = {};
         });
         // Save new state:
@@ -95,6 +112,15 @@ var CasparCGState = (function () {
     /** */
     CasparCGState.prototype.setState = function (state) {
         this._currentStateStorage.storeState(state);
+    };
+    CasparCGState.prototype.softClearState = function () {
+        // a soft clear, ie clears any content, but keeps channel settings
+        var currentState = this._currentStateStorage.fetchState();
+        _.each(currentState.channels, function (channel) {
+            channel.layers = {};
+        });
+        // Save new state:
+        this._currentStateStorage.storeState(currentState);
     };
     CasparCGState.prototype.clearState = function () {
         this._currentStateStorage.clearState();
@@ -132,6 +158,7 @@ var CasparCGState = (function () {
         this._currentStateStorage.storeState(currentState);
     };
     CasparCGState.prototype.applyCommandsToState = function (currentState, commands) {
+        //console.log('applyCommandsToState',commands);
         // iterates over commands and applies new state to provided state object
         var _this = this;
         var setMixerState = function (channel, command, attr, subValue) {
@@ -143,7 +170,7 @@ var CasparCGState = (function () {
             console.log(subValue);
             console.log(command)
             */
-            if (command._objectParams['_defaultOptions']) {
+            if ((command._objectParams || {})['_defaultOptions']) {
                 // the command sent, contains "default parameters"
                 delete layer.mixer[attr];
             }
@@ -173,6 +200,7 @@ var CasparCGState = (function () {
                 channel = new Channel();
                 channel.channelNo = channelNo;
                 currentState.channels[channel.channelNo + ''] = channel;
+                //throw new Error(`Missing channel with channel number "${command.channel}"`);
             }
             var cmdName = command._commandName;
             switch (cmdName) {
@@ -186,7 +214,7 @@ var CasparCGState = (function () {
                         layer.playing = (cmdName == 'PlayCommand');
                         layer.media = new TransitionObject(command._objectParams['clip']);
                         if (command._objectParams['transition']) {
-                            layer.media.inTransition = new Transition(command._objectParams['transition'], +command._objectParams['transitionDuration'], command._objectParams['transitionEasing'], command._objectParams['transitionDirection']);
+                            layer.media.inTransition = new Transition(command._objectParams['transition'], +(command._objectParams['transitionDuration'] || 0), command._objectParams['transitionEasing'], command._objectParams['transitionDirection']);
                         }
                         layer.looping = !!command._objectParams['loop'];
                         if (i.additionalLayerState) {
@@ -195,6 +223,7 @@ var CasparCGState = (function () {
                         else {
                             layer.playTime = _this._currentTimeFunction() - playDeltaTime;
                         }
+                        layer.pauseTime = Number(command._objectParams['pauseTime']) || 0;
                         _this._getMediaDuration((layer.media || '').toString(), channel.channelNo, layer.layerNo);
                     }
                     else {
@@ -203,6 +232,7 @@ var CasparCGState = (function () {
                             layer.playing = true;
                             var playedTime = layer.playTime - layer.pauseTime;
                             layer.playTime = _this._currentTimeFunction() - playedTime; // "move" the clip to new start time
+                            layer.pauseTime = 0;
                         }
                     }
                     if (i.additionalLayerState && i.additionalLayerState.media) {
@@ -240,7 +270,7 @@ var CasparCGState = (function () {
                         layer.next.content = 'media';
                         layer.media = new TransitionObject(command._objectParams['clip']);
                         if (command._objectParams['transition']) {
-                            layer.media.inTransition = new Transition(command._objectParams['transition'], +command._objectParams['transitionDuration'], command._objectParams['transitionEasing'], command._objectParams['transitionDirection']);
+                            layer.media.inTransition = new Transition(command._objectParams['transition'], +(command._objectParams['transitionDuration'] || 0), command._objectParams['transitionEasing'], command._objectParams['transitionDirection']);
                         }
                         layer.next.looping = !!command._objectParams['loop'];
                     }
@@ -327,11 +357,15 @@ var CasparCGState = (function () {
                 case "MixerAnchorCommand":
                     setMixerState(channel, command, 'anchor', ['x', 'y']);
                     break;
-                // blend
+                case "MixerBlendCommand":
+                    setMixerState(channel, command, 'blend', 'blend');
+                    break;
                 case "MixerBrightnessCommand":
                     setMixerState(channel, command, 'brightness', 'brightness');
                     break;
-                // chroma
+                case "MixerChromaCommand":
+                    setMixerState(channel, command, 'chroma', ['keyer', 'threshold', 'softness', 'spill']);
+                    break;
                 case "MixerClipCommand":
                     setMixerState(channel, command, 'clip', ['x', 'y', 'width', 'height']);
                     break;
@@ -345,9 +379,15 @@ var CasparCGState = (function () {
                     setMixerState(channel, command, 'fill', ['x', 'y', 'xScale', 'yScale']);
                     break;
                 // grid
-                // keyer
-                // levels
-                // mastervolume
+                case "MixerKeyerCommand":
+                    setMixerState(channel, command, 'keyer', 'keyer');
+                    break;
+                case "MixerLevelsCommand":
+                    setMixerState(channel, command, 'levels', ['minInput', 'maxInput', 'gamma', 'minOutput', 'maxOutput']);
+                    break;
+                case "MixerMastervolumeCommand":
+                    setMixerState(channel, command, 'mastervolume', 'mastervolume');
+                    break;
                 // mipmap
                 case "MixerOpacityCommand":
                     setMixerState(channel, command, 'opacity', 'opacity');
@@ -444,6 +484,7 @@ var CasparCGState = (function () {
         return this.diffStates(currentState, newState);
     };
     CasparCGState.prototype.compareAttrs = function (obj0, obj1, attrs, strict) {
+        var _this = this;
         var difference = null;
         var diff0 = '';
         var diff1 = '';
@@ -452,6 +493,12 @@ var CasparCGState = (function () {
             //if (val.valueOf) return val.valueOf();
             //return val;
             return Mixer.getValue(val);
+        };
+        var cmp = function (a, b, name) {
+            if (name == 'playTime') {
+                return Math.abs(a - b) > _this.minTimeSincePlay;
+            }
+            return a != b;
         };
         if (obj0 && obj1) {
             if (strict) {
@@ -469,7 +516,7 @@ var CasparCGState = (function () {
             }
             else {
                 _.each(attrs, function (a) {
-                    if (getValue(obj0[a]) != getValue(obj1[a])) {
+                    if (cmp(getValue(obj0[a]), getValue(obj1[a]), a)) {
                         diff0 = getValue(obj0[a]) + '';
                         diff1 = getValue(obj1[a]) + '';
                         if (diff0 && diff0.length > 20)
@@ -564,7 +611,7 @@ var CasparCGState = (function () {
                     }
                     if (diff) {
                         // Added things:
-                        console.log('ADD: ' + layer.content + ' ' + diff);
+                        _this.log('ADD: ' + layer.content + ' ' + diff);
                         var options = {};
                         options.channel = channel.channelNo;
                         options.layer = layer.layerNo;
@@ -572,38 +619,56 @@ var CasparCGState = (function () {
                             options.noClear = layer.noClear;
                         setTransition(options, channel, oldLayer, layer.media);
                         if (layer.content == 'media' && layer.media !== null) {
-                            var timeSincePlay = (layer.pauseTime || time) - layer.playTime;
-                            if (timeSincePlay < _this.minTimeSincePlay) {
-                                timeSincePlay = 0;
-                            }
-                            if (layer.looping) {
-                                // we don't support looping and seeking at the same time right now..
-                                timeSincePlay = 0;
-                            }
-                            if (_.isNull(layer.playTime)) {
-                                timeSincePlay = null;
-                            }
-                            var seek = Math.max(0, Math.floor(((timeSincePlay || 0)
-                                +
-                                    (layer.seek || 0))
-                                * oldChannel.fps));
+                            var getTimeSincePlay = function (layer) {
+                                var timeSincePlay = (layer.pauseTime || time) - (layer.playTime || 0);
+                                if (timeSincePlay < _this.minTimeSincePlay) {
+                                    timeSincePlay = 0;
+                                }
+                                if (layer.looping) {
+                                    // we don't support looping and seeking at the same time right now..
+                                    timeSincePlay = 0;
+                                }
+                                if (_.isNull(layer.playTime)) {
+                                    timeSincePlay = null;
+                                }
+                                return timeSincePlay;
+                            };
+                            var getSeek = function (layer, timeSincePlay) {
+                                return Math.max(0, Math.floor(((timeSincePlay || 0)
+                                    +
+                                        (layer.seek || 0))
+                                    * (channel.fps || oldChannel.fps)));
+                            };
+                            var timeSincePlay = getTimeSincePlay(layer);
+                            var seek = getSeek(layer, timeSincePlay);
                             if (layer.playing) {
-                                cmd = new casparcg_connection_1.AMCP.PlayCommand(_.extend(options, {
-                                    clip: (layer.media || '').toString(),
-                                    seek: seek,
-                                    loop: !!layer.looping
-                                }));
+                                var oldTimeSincePlay = getTimeSincePlay(oldLayer);
+                                var oldSeek = getSeek(oldLayer, oldTimeSincePlay);
+                                if (layer.media == oldLayer.media &&
+                                    oldLayer.pauseTime &&
+                                    Math.abs(oldSeek - seek) < _this.minTimeSincePlay) {
+                                    cmd = new casparcg_connection_1.AMCP.PlayCommand(options);
+                                }
+                                else {
+                                    cmd = new casparcg_connection_1.AMCP.PlayCommand(_.extend(options, {
+                                        clip: (layer.media || '').toString(),
+                                        seek: seek,
+                                        loop: !!layer.looping
+                                    }));
+                                }
                             }
                             else {
-                                if ((layer.pauseTime && (time - layer.pauseTime) < _this.minTimeSincePlay)
-                                    || _.isNull(timeSincePlay)) {
+                                if (((layer.pauseTime && (time - layer.pauseTime) < _this.minTimeSincePlay) ||
+                                    _.isNull(timeSincePlay)) &&
+                                    layer.media == oldLayer.media) {
                                     cmd = new casparcg_connection_1.AMCP.PauseCommand(options);
                                 }
                                 else {
                                     cmd = new casparcg_connection_1.AMCP.LoadCommand(_.extend(options, {
                                         clip: (layer.media || '').toString(),
                                         seek: seek,
-                                        loop: !!layer.looping
+                                        loop: !!layer.looping,
+                                        pauseTime: layer.pauseTime
                                     }));
                                 }
                             }
@@ -632,6 +697,10 @@ var CasparCGState = (function () {
                                     channelLayout: channelLayout
                                 });
                                 cmd = new casparcg_connection_1.AMCP.PlayDecklinkCommand(options);
+                                /*cmd = new AMCP.CustomCommand(_.extend(options,{
+                                    command: "PLAY "+options.channel+"-"+options.layer+" "+inputType+" DEVICE "+device+" FORMAT "+format,
+                                }));
+                                */
                             }
                         }
                         else if (layer.content == 'route' && layer.route) {
@@ -656,12 +725,23 @@ var CasparCGState = (function () {
                                 channel: options.channel,
                                 layer: options.layer,
                                 _commandName: 'executeFunction',
-                                externalFunction: true,
-                                functionName: layer.executeFcn,
-                                functionData: layer.executeData,
-                                functionLayer: layer,
                                 media: layer.media,
+                                externalFunction: true,
                             };
+                            if (layer.executeFcn === 'special_osc') {
+                                cmd = _.extend(cmd, {
+                                    specialFunction: 'osc',
+                                    oscDevice: layer.oscDevice,
+                                    message: layer.inMessage,
+                                });
+                            }
+                            else {
+                                cmd = _.extend(cmd, {
+                                    functionName: layer.executeFcn,
+                                    functionData: layer.executeData,
+                                    functionLayer: layer,
+                                });
+                            }
                         }
                         else {
                             if (oldLayer.content == 'media' || oldLayer.content == 'media') {
@@ -673,7 +753,7 @@ var CasparCGState = (function () {
                         diff = _this.compareAttrs(layer, oldLayer, ['templateData']);
                         if (diff) {
                             // Updated things:
-                            console.log('UPDATE: ' + layer.content + ' ' + diff);
+                            _this.log('UPDATE: ' + layer.content + ' ' + diff);
                             var options = {};
                             options.channel = channel.channelNo;
                             options.layer = layer.layerNo;
@@ -786,6 +866,9 @@ var CasparCGState = (function () {
                                 }
                                 else {
                                     options_1[attr] = defaultValue;
+                                    /*_.extend(options,{
+                                        value:
+                                    });*/
                                 }
                                 /*
                                 console.log('defaultValues')
@@ -798,17 +881,17 @@ var CasparCGState = (function () {
                     };
                     //if (this.compareAttrs(layer.mixer,oldLayer.mixer,Mixer.supportedAttributes())) {
                     pushMixerCommand('anchor', casparcg_connection_1.AMCP.MixerAnchorCommand, ['x', 'y']);
-                    // blend
+                    pushMixerCommand('blend', casparcg_connection_1.AMCP.MixerBlendCommand, 'blend');
                     pushMixerCommand('brightness', casparcg_connection_1.AMCP.MixerBrightnessCommand, 'brightness');
-                    // chroma
+                    pushMixerCommand('chroma', casparcg_connection_1.AMCP.MixerChromaCommand, ['keyer', 'threshold', 'softness', 'spill']);
                     pushMixerCommand('clip', casparcg_connection_1.AMCP.MixerClipCommand, ['x', 'y', 'width', 'height']);
                     pushMixerCommand('contrast', casparcg_connection_1.AMCP.MixerContrastCommand, 'contrast');
                     pushMixerCommand('crop', casparcg_connection_1.AMCP.MixerCropCommand, ['left', 'top', 'right', 'bottom']);
                     pushMixerCommand('fill', casparcg_connection_1.AMCP.MixerFillCommand, ['x', 'y', 'xScale', 'yScale']);
                     // grid
-                    // keyer
-                    // levels
-                    // mastervolume
+                    pushMixerCommand('keyer', casparcg_connection_1.AMCP.MixerKeyerCommand, 'keyer');
+                    pushMixerCommand('levels', casparcg_connection_1.AMCP.MixerLevelsCommand, ['minInput', 'maxInput', 'gamma', 'minOutput', 'maxOutput']);
+                    pushMixerCommand('mastervolume', casparcg_connection_1.AMCP.MixerMastervolumeCommand, 'mastervolume');
                     // mipmap
                     pushMixerCommand('opacity', casparcg_connection_1.AMCP.MixerOpacityCommand, 'opacity');
                     pushMixerCommand('perspective', casparcg_connection_1.AMCP.MixerPerspectiveCommand, ['topLeftX', 'topLeftY', 'topRightX', 'topRightY', 'bottomRightX', 'bottomRightY', 'bottomLeftX', 'bottomLeftY']);
@@ -841,10 +924,10 @@ var CasparCGState = (function () {
                 var newLayer = newChannel.layers[layerKey + ''] || (new Layer);
                 if (newLayer) {
                     if (!newLayer.content && oldLayer.content) {
-                        console.log('REMOVE ' + channelKey + '-' + layerKey + ': ' + oldLayer.content);
+                        _this.log('REMOVE ' + channelKey + '-' + layerKey + ': ' + oldLayer.content);
                         if (oldLayer.noClear) {
                             // hack: don't do the clear command
-                            console.log('NOCLEAR is set!');
+                            _this.log('NOCLEAR is set!');
                         }
                         else {
                             var cmd = void 0;

@@ -1,6 +1,6 @@
 {
   "name": "casparcg-state",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Node.js Javascript/Typescript library for keeping and resolving a given state of CasparCG into commands for casparcg-connection.",
   "main": "js/index.js",
   "typings": "js/index.d.ts",
@@ -24,11 +24,15 @@
   "directories": {
     "lib": "src/"
   },
-  "author": {
+  "contributors":[{
+    "name": "Johan Nyman",
+    "email": "johan@superfly.tv",
+    "url": "http://superfly.tv"
+  },{
     "name": "Jesper Stærkær",
     "email": "jesper@superfly.tv",
     "url": "http://superfly.tv"
-  },
+  }],
   "homepage": "http://superfly.tv",
   "keywords": [
     "casparcg",
@@ -51,7 +55,7 @@
   },
   "devDependencies": {
     "@types/deep-diff": "0.0.29",
-    "@types/node": "^6.0.46",
+    "@types/node": "^8.0.10",
     "@types/underscore": "^1.7.36",
     "del": "^2.2.1",
     "gulp": "^3.9.1",
