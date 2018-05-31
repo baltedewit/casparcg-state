@@ -19,6 +19,8 @@ export declare namespace CasparCGFull {
     }
     interface ITemplateLayer extends CasparCG.ITemplateLayer {
     }
+    interface IHtmlPageLayer extends CasparCG.IHtmlPageLayer {
+    }
     interface IInputLayer extends CasparCG.IInputLayer {
     }
     interface IRouteLayer extends CasparCG.IRouteLayer {

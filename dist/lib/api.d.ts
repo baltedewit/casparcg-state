@@ -60,6 +60,13 @@ export declare namespace CasparCG {
         cgStop?: boolean;
         nextUp?: NextUp | null;
     }
+    interface IHtmlPageLayer extends ILayerBase {
+        content: LayerContentType.HTMLPAGE;
+        media: string | TransitionObject0 | null;
+        playTime: number | null;
+        playing: true;
+        nextUp?: NextUp | null;
+    }
     interface IInputLayer extends ILayerBase {
         content: LayerContentType.INPUT;
         media: 'decklink' | TransitionObject0;
@@ -113,6 +120,7 @@ export declare namespace CasparCG {
         NOTHING = "",
         MEDIA = "media",
         TEMPLATE = "template",
+        HTMLPAGE = "htmlpage",
         INPUT = "input",
         ROUTE = "route",
         RECORD = "record",

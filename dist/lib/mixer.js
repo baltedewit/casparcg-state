@@ -75,7 +75,7 @@ var Mixer = /** @class */ (function () {
                     yScale: 1
                 };
             // grid
-            case 'keyer': // Layer mask
+            case 'keyer':// Layer mask
                 return false;
             case 'levels':
                 return {

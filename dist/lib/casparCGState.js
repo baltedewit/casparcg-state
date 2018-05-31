@@ -270,7 +270,7 @@ var CasparCGState0 = /** @class */ (function () {
                 var layer = _this.ensureLayer(channel, layerNo);
                 // Note: we don't support flashLayer for the moment
                 if (command._objectParams['templateName']) {
-                    layer.content = api_1.CasparCG.LayerContentType.TEMPLATE; // @todo: string literal
+                    layer.content = api_1.CasparCG.LayerContentType.TEMPLATE;
                     layer.media = command._objectParams['templateName'];
                     layer.cgStop = !!command._objectParams['cgStop'];
                     layer.templateType = command._objectParams['templateType'];
@@ -288,6 +288,11 @@ var CasparCGState0 = /** @class */ (function () {
                     }
                     layer.noClear = command._objectParams['noClear'];
                 }
+            }
+            else if (cmdName === 'PlayHtmlPageCommand') {
+                var layer = _this.ensureLayer(channel, layerNo);
+                layer.content = api_1.CasparCG.LayerContentType.HTMLPAGE;
+                layer.media = command._objectParams['url'];
             }
             else if (cmdName === 'CGUpdateCommand') {
                 var layer = _this.ensureLayer(channel, layerNo);
@@ -559,6 +564,12 @@ var CasparCGState0 = /** @class */ (function () {
                             setDefaultValue([nl, ol], ['templateType'], '');
                             diff = _this.compareAttrs(nl, ol, ['media', 'templateType']);
                         }
+                        else if (newLayer.content === api_1.CasparCG.LayerContentType.HTMLPAGE) {
+                            var nl = newLayer;
+                            var ol = oldLayer;
+                            setDefaultValue([nl, ol], ['media'], '');
+                            diff = _this.compareAttrs(nl, ol, ['media']);
+                        }
                         else if (newLayer.content === api_1.CasparCG.LayerContentType.INPUT) {
                             var nl = newLayer;
                             var ol = oldLayer;
@@ -606,7 +617,7 @@ var CasparCGState0 = /** @class */ (function () {
                                     // we don't support looping and seeking at the same time right now..
                                     timeSincePlay = 0;
                                 }
-                                if (_.isNull(layer.playTime)) { // null indicates the start time is not relevant, like for a LOGICAL object, or an image
+                                if (_.isNull(layer.playTime)) {
                                     timeSincePlay = null;
                                 }
                                 return timeSincePlay;
@@ -664,6 +675,13 @@ var CasparCGState0 = /** @class */ (function () {
                                 data: nl.templateData || undefined,
                                 cgStop: nl.cgStop,
                                 templateType: nl.templateType
+                            }));
+                        }
+                        else if (newLayer.content === api_1.CasparCG.LayerContentType.HTMLPAGE && newLayer.media !== null) {
+                            var nl = newLayer;
+                            // let ol: CF.ITemplateLayer = oldLayer as CF.ITemplateLayer
+                            cmd = new casparcg_connection_1.AMCP.PlayHtmlPageCommand(_.extend(options, {
+                                url: (nl.media || '').toString()
                             }));
                         }
                         else if (newLayer.content === api_1.CasparCG.LayerContentType.INPUT && newLayer.media !== null) {
@@ -747,7 +765,7 @@ var CasparCGState0 = /** @class */ (function () {
                         }
                         else {
                             // @todo: When does this happen? Do we need this? /Johan
-                            if (oldLayer.content === api_1.CasparCG.LayerContentType.MEDIA) { // || oldLayer.content === CasparCG.LayerContentType.MEDIA ???
+                            if (oldLayer.content === api_1.CasparCG.LayerContentType.MEDIA) {
                                 cmd = new casparcg_connection_1.AMCP.StopCommand(options);
                             }
                         }
@@ -1057,7 +1075,7 @@ var CasparCGState0 = /** @class */ (function () {
     };
     /** */
     CasparCGState0.prototype.ensureLayer = function (channel, layerNo) {
-        if (!(layerNo > 0 || layerNo === -1)) { // -1 is a "spare layer" for non-layer bound things, like master volume
+        if (!(layerNo > 0 || layerNo === -1)) {
             throw new Error("State.ensureLayer: tried to get layer '" + layerNo + "' on channel '" + channel + "'");
         }
         var layer = channel.layers[layerNo + ''];

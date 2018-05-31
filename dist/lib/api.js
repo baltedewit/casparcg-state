@@ -59,6 +59,7 @@ var CasparCG;
         LayerContentType["NOTHING"] = "";
         LayerContentType["MEDIA"] = "media";
         LayerContentType["TEMPLATE"] = "template";
+        LayerContentType["HTMLPAGE"] = "htmlpage";
         LayerContentType["INPUT"] = "input";
         LayerContentType["ROUTE"] = "route";
         LayerContentType["RECORD"] = "record";
